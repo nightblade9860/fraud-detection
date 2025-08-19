@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:4000/"; 
+const API_URL = "https://fraud-detection-1-kict.onrender.com";
 
 export const fetchTransactions = async () => {
   const query = `
