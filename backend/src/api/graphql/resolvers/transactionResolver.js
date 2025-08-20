@@ -10,19 +10,47 @@ dotenv.config();
 let cacheAll = { data: null };
 let cacheSuspicious = { data: null };
 
+/**
+ * Checks if a given cache object has valid data.
+ *
+ * @function isCacheValid
+ * @param {object} cache - Cache object with a `data` property.
+ * @returns {boolean} - Returns true if the cache contains data, otherwise false.
+ */
 function isCacheValid(cache){  
   if (!cache.data) return false;
   return true;
 };
 
+/**
+ * Generates a random IP address given a prefix.
+ *
+ * @function randomIp
+ * @param {string} prefix - IP prefix (e.g., "192.168.").
+ * @returns {string} - Returns a randomized IP address.
+ */
 function randomIp(prefix) {
   return prefix + Math.ceil(Math.random() * 255);
 }
 
+/**
+ * Returns the valid currency for a given IP prefix.
+ *
+ * @function randomValidCurrencyForIp
+ * @param {string} prefix - IP prefix.
+ * @returns {string} - A currency code valid for that prefix.
+ */
 function randomValidCurrencyForIp(prefix) {
   return ipCurrencyMap[prefix];
 }
 
+/**
+ * Returns a random currency that is different from the valid one for a given IP prefix.
+ *
+ * @function randomDifferentCurrency
+ * @param {string} prefix - IP prefix.
+ * @returns {string} - A currency code different from the prefix's valid currency.
+ */
 function randomDifferentCurrency(prefix) {
   const valid = ipCurrencyMap[prefix];
   let other = currencies[Math.floor(Math.random() * currencies.length)];
@@ -32,10 +60,24 @@ function randomDifferentCurrency(prefix) {
   return other;
 }
 
+/**
+ * Returns the cache of suspicious transactions.
+ *
+ * @function getSuspiciousCache
+ * @returns {Array<object>} - Array of suspicious transactions. Null pointer check skipped as handled by the caller.
+ */
 export const getSuspiciousCache = () => {
   return cacheSuspicious.data ;
 }
 
+/**
+ * Inserts multiple transactions into the database.
+ *
+ * @async
+ * @function insertInDB
+ * @param {Array<object>} transactions - List of transactions to insert.
+ * @returns {Promise<void>} - Resolves when all transactions are inserted.
+ */
 const insertInDB = async (transactions) => {
   try {
     const queries = transactions.map((t) =>
@@ -51,8 +93,19 @@ const insertInDB = async (transactions) => {
   }
 };
 
+/**
+ * GraphQL resolvers for transaction-related queries and mutations.
+ */
 const transactionResolver = {
   Query: {
+    /**
+     * Fetches all transactions (from cache if available).
+     * Adds default fields `suspicious: false` and `reason: []`.
+     *
+     * @async
+     * @function transactions
+     * @returns {Promise<Array<object>>} - List of transactions.
+     */
     transactions: async () => {
       if (isCacheValid(cacheAll)) {
         return cacheAll.data;
@@ -74,6 +127,13 @@ const transactionResolver = {
       }
     },
 
+     /**
+     * Fetches suspicious transactions (from cache if available).
+     *
+     * @async
+     * @function suspiciousTransactions
+     * @returns {Promise<Array<object>>} - List of suspicious transactions.
+     */
     suspiciousTransactions: async () => {
       if (isCacheValid(cacheSuspicious)) {
         return cacheSuspicious.data;
@@ -84,6 +144,14 @@ const transactionResolver = {
   },
 
   Mutation: {
+    /**
+     * Generates a new batch of transactions (40 clean + 10 suspicious).
+     * Clears existing DB data, generates mock transactions, and inserts them.
+     *
+     * @async
+     * @function generateTransactions
+     * @returns {Promise<boolean>} - Returns true if generation & insertion succeeded, false otherwise.
+     */
     generateTransactions: async () => {
       cacheAll.data = null;
       cacheSuspicious.data = null;
@@ -91,6 +159,7 @@ const transactionResolver = {
         await pool.query("TRUNCATE TABLE transactions;");
       } catch (err) {
         logger.error("Error deleting existing transactions for generation of new data: ", err);
+        return false;
       }
 
       const transactions = [];
@@ -211,15 +280,31 @@ const transactionResolver = {
       }
       return true;
     },
+    /**
+     * Applies fraud detection rules to all transactions.
+     * Updates cache with flagged suspicious transactions.
+     *
+     * @function applyFraudRules
+     * @param {object} _ - Parent resolver context (unused).
+     * @param {object} args - Mutation arguments.
+     * @param {Array<object>} args.rules - Fraud rules to apply.
+     * @returns {object} - Object containing all transactions and suspicious transactions.
+     */
     applyFraudRules(_, { rules }) {
       // Get all caches
       const allRecords = cacheAll.data || [];
 
       if (!rules || rules.length === 0) {
         logger.info("No rules sent!");
+        // Reset suspicion and reaon in cache memory as false and [] respectively as theres no suspicious data anymore
+        const resetRecords = allRecords.map(r => ({
+          ...r,
+          suspicious: false,
+          reason: []
+        }));
         cacheSuspicious.data = null
         return {
-          all: allRecords,
+          all: resetRecords,
           suspicious: []
         };
       }

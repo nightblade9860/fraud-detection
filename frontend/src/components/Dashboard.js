@@ -33,7 +33,11 @@ const Dashboard = () => {
   };
 
   const handleGenerate = async () => {
-    await generateData();
+    const isSuccess = await generateData();
+    if (!isSuccess){
+      alert("Generation failed, please retry!");
+      return;
+    }
     setSelectedRules([]);  
     loadTransactions();
   };
