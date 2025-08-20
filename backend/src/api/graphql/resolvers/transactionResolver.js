@@ -1,4 +1,4 @@
-import pool from "../../../db/index.js";
+import pool, { pendingQueue } from "../../../db/index.js";
 import dotenv from "dotenv";
 import { getAllDataWithRulesCheck } from "../../../services/rulesEngine.js";
 import logger from "../../../logs/logger.js";
@@ -69,29 +69,6 @@ function randomDifferentCurrency(prefix) {
 export const getSuspiciousCache = () => {
   return cacheSuspicious.data ;
 }
-
-/**
- * Inserts multiple transactions into the database.
- *
- * @async
- * @function insertInDB
- * @param {Array<object>} transactions - List of transactions to insert.
- * @returns {Promise<void>} - Resolves when all transactions are inserted.
- */
-const insertInDB = async (transactions) => {
-  try {
-    const queries = transactions.map((t) =>
-      pool.query(
-        `INSERT INTO transactions(transaction_id, user_id, ip, amount, currency, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [t.transaction_id, t.user_id, t.ip, t.amount, t.currency, t.created_at]
-      )
-    );
-    await Promise.all(queries); 
-  } catch (err) {
-    logger.error("Error inserting transactions: ", err);
-  }
-};
 
 /**
  * GraphQL resolvers for transaction-related queries and mutations.
@@ -272,12 +249,13 @@ const transactionResolver = {
       for (const type of suspiciousCases) {
         pushSuspicious(type);
       }
-      try {
-        await insertInDB(transactions);
-      } catch (err) {
-        logger.error("Err during insertion: " + err);
-        return false;
-      }
+      const rowsWithDefaults = transactions.map(t => ({
+          ...t,
+          suspicious: false,
+          reason: []
+        }));
+      cacheAll = { data: rowsWithDefaults };
+      pendingQueue.push(...transactions);
       return true;
     },
     /**

@@ -27,7 +27,7 @@ const TransactionTable = ({ transactions, title, isSuspiciousTable }) => {
                   <td>{tx.amount}</td>
                   <td>{tx.currency}</td>
                   <td>{tx.suspicious ? "Suspicious" : "OK"}</td>
-                  <td>{tx.created_at ? new Date(Number(tx.created_at)).toLocaleString() : ""}</td>
+                  <td>{tx.created_at ? new Date(isNaN(Number(tx.created_at)) ? tx.created_at : Number(tx.created_at) * 1000).toLocaleString() : ""}</td>
                 </>
               )}
             </tr>

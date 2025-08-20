@@ -56,7 +56,38 @@ export const getAllDataWithRulesCheck = (allRecords, rules) => {
             suspicious = true;
             reason.push("High amount of transaction");
           }
-          break;          
+          break;    
+          
+        default:
+          // If it's not in FRAUD_RULES, treat it as custom rule
+          try {
+            const [field, operator, value] = rule.split(" ");
+            let check = false;
+
+            if (field && operator && value !== undefined) {
+              switch (operator) {
+                case "=":
+                  check = record[field] == value;
+                  break;
+                case ">":
+                  check = Number(record[field]) > Number(value);
+                  break;
+                case "<":
+                  check = Number(record[field]) < Number(value);
+                  break;
+                case "!=":
+                  check = record[field] != value;
+              }
+            }
+
+            if (check) {
+              suspicious = true;
+              reason.push(`Custom rule violated: ${rule}`);
+            }
+          } catch (err) {
+            console.error("Invalid custom rule:", rule);
+          }
+          break;
       }
     }
 

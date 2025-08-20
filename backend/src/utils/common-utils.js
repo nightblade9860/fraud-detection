@@ -8,6 +8,7 @@ export const ipCurrencyMap = {
   "192.168.100.": "INR",
   "10.1.1.": "GBP",
 };
+export const FLUSH_INTERVAL_MS = 5000;
 export const AMOUNT_LIMIT = 1000; 
 export const ipPrefixes = ["192.168.1.", "10.0.0.", "172.16.0.", "192.168.100.", "10.1.1."];
 export const currencies = ["USD", "AED", "EUR", "INR", "GBP"];
